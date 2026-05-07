@@ -15,6 +15,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
 } from 'recharts';
 import { secureFetch } from "../utils/auth";
+import { registerPushManager } from "../../utils/pushManager";
 
 const DEFAULT_LAYOUT = [
   { id: 'stats', x: 0, y: 0, w: 12, h: 2, type: 'stats' },
@@ -53,6 +54,7 @@ export default function DashboardPage() {
       }
     }
     fetchData();
+    registerPushManager();
   }, []);
 
   const fetchData = async () => {

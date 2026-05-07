@@ -3,10 +3,13 @@
 import { useState, useEffect } from "react";
 import styles from "./page.module.css";
 import { secureFetch } from "../../utils/auth";
+import { useSocket } from "../../components/SocketProvider/SocketProvider";
 import LoadingComponent from "../../components/Loading/Loading";
 import AttendanceCamera from "../../components/AttendanceCamera/AttendanceCamera";
+import { verifyResidentFace } from "../../utils/gemini";
 
 export default function StudentAttendance() {
+  const { socket } = useSocket();
   const [activeTab, setActiveTab] = useState("attendance");
   const [loading, setLoading] = useState(true);
   
@@ -17,6 +20,8 @@ export default function StudentAttendance() {
   const [punching, setPunching] = useState(false);
   const [punchResult, setPunchResult] = useState(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [profilePic, setProfilePic] = useState(null);
+  const [verificationLoading, setVerificationLoading] = useState(false);
 
   // Leaves state
   const [leaves, setLeaves] = useState([]);
@@ -29,8 +34,8 @@ export default function StudentAttendance() {
     reason: ""
   });
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const [activeRes, historyRes, leavesRes] = await Promise.all([
         secureFetch("/v1/residents/attendance/active"),
@@ -53,6 +58,13 @@ export default function StudentAttendance() {
       if (leavesData.success || leavesData.status === 'success') {
         setLeaves(leavesData.data?.leaves || []);
       }
+
+      // Fetch resident profile for face verification
+      const profileRes = await secureFetch("/v1/residents/profile");
+      const profileData = await profileRes.json();
+      if (profileData.success) {
+        setProfilePic(profileData.data.resident?.kyc?.profilePhoto || null);
+      }
     } catch (e) {
       console.error("Failed to fetch attendance data", e);
     } finally {
@@ -62,54 +74,102 @@ export default function StudentAttendance() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+
+    if (socket) {
+      const handleAttendanceTrigger = (data) => {
+        console.log("Real-time attendance triggered:", data);
+        fetchData(true); // Silent refresh
+      };
+
+      const handleComplaintUpdate = (data) => {
+        console.log("Real-time complaint update:", data);
+        // Refresh everything or specific parts
+        fetchData(true);
+      };
+
+      socket.on("attendanceTriggered", handleAttendanceTrigger);
+      socket.on("complaintUpdated", handleComplaintUpdate);
+
+      return () => {
+        socket.off("attendanceTriggered", handleAttendanceTrigger);
+        socket.off("complaintUpdated", handleComplaintUpdate);
+      };
+    }
+  }, [socket]);
 
   const handleMarkAttendance = () => {
     setIsCameraOpen(true);
   };
 
   const processAttendanceWithPhoto = async (photoBase64) => {
-    // The photo is used as a premature check layer and is not uploaded per USER request
     setPunching(true);
+    setVerificationLoading(true);
     setIsCameraOpen(false);
     
-    if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser");
-      setPunching(false);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const { latitude, longitude, accuracy } = position.coords;
-          
-          const res = await secureFetch("/v1/residents/attendance/submit", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: "Present", latitude, longitude, accuracy })
-          });
-
-          const data = await res.json();
-          if (data.status === 'success' || data.success) {
-            setPunchResult({ success: true, message: data.data?.message || data.message || "Attendance marked successfully" });
-            setActiveRequest(null);
-            fetchData();
-          } else {
-            setPunchResult({ success: false, message: data.message });
-          }
-        } catch (e) {
-          setPunchResult({ success: false, message: "Server error occurred" });
-        } finally {
-          setPunching(false);
-        }
-      },
-      (error) => {
-        alert("Please enable location access to mark attendance.");
+    try {
+      // Step 1: Premature Face Comparison using Gemini
+      if (!profilePic) {
+        setPunchResult({ success: false, message: "Profile picture not found. Please contact administration." });
         setPunching(false);
-      },
-      { enableHighAccuracy: true }
-    );
+        setVerificationLoading(false);
+        return;
+      }
+
+      const verification = await verifyResidentFace(profilePic, photoBase64);
+      setVerificationLoading(false);
+
+      if (!verification.isMatch || verification.confidence < 60) {
+        setPunchResult({ 
+          success: false, 
+          message: `Identity verification failed (${verification.confidence}% confidence). The actual resident is not in frame. Please retry.` 
+        });
+        setPunching(false);
+        return;
+      }
+
+      // Step 2: Proceed with Geolocation and Submission if verified
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser");
+        setPunching(false);
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            const { latitude, longitude, accuracy } = position.coords;
+            
+            const res = await secureFetch("/v1/residents/attendance/submit", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "Present", latitude, longitude, accuracy })
+            });
+
+            const data = await res.json();
+            if (data.status === 'success' || data.success) {
+              setPunchResult({ success: true, message: data.data?.message || data.message || "Attendance marked successfully" });
+              setActiveRequest(null);
+              fetchData();
+            } else {
+              setPunchResult({ success: false, message: data.message });
+            }
+          } catch (e) {
+            setPunchResult({ success: false, message: "Server error occurred" });
+          } finally {
+            setPunching(false);
+          }
+        },
+        (error) => {
+          alert("Please enable location access to mark attendance.");
+          setPunching(false);
+        },
+        { enableHighAccuracy: true }
+      );
+    } catch (err) {
+      setPunchResult({ success: false, message: err.message || "Verification process failed" });
+      setPunching(false);
+      setVerificationLoading(false);
+    }
   };
 
   const handleApplyLeave = async (e) => {
@@ -213,11 +273,11 @@ export default function StudentAttendance() {
                   <p>{activeRequest.remarks || "A regular presence check is active. Please confirm your location to mark attendance."}</p>
                 </div>
                 <button 
-                  className={styles.markBtn} 
-                  onClick={handleMarkAttendance}
-                  disabled={punching}
+                   className={styles.markBtn} 
+                   onClick={handleMarkAttendance}
+                   disabled={punching}
                 >
-                  {punching ? "Verifying Location..." : "Confirm Presence"}
+                   {verificationLoading ? "Verifying Face..." : punching ? "Verifying Location..." : "Confirm Presence"}
                 </button>
               </div>
             </section>

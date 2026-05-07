@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./notifications.module.css";
 import { secureFetch } from "../../utils/auth";
+import { useSocket } from "../../components/SocketProvider/SocketProvider";
 import Loading from "../../components/Loading/Loading";
 
 export default function NotificationsPage() {
@@ -12,13 +13,17 @@ export default function NotificationsPage() {
   const [selectedNotif, setSelectedNotif] = useState(null);
   const router = useRouter();
 
-  const fetchNotifications = async () => {
+  const { socket } = useSocket();
+
+  const fetchNotifications = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await secureFetch("/v1/residents/notifications");
       const data = await res.json();
       if (data.success) {
         setNotifications(data.data.notifications);
-        if (data.data.notifications.length > 0) {
+        // Only auto-select if no selection exists
+        if (data.data.notifications.length > 0 && !selectedNotif) {
           setSelectedNotif(data.data.notifications[0]);
           markAsRead(data.data.notifications[0]._id);
         }
@@ -44,7 +49,32 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     fetchNotifications();
-  }, []);
+
+    if (socket) {
+      const handleNewNotification = (data) => {
+        console.log("Real-time notice received:", data);
+        fetchNotifications(true); // Silent refresh
+      };
+
+      socket.on("newNotification", handleNewNotification);
+
+      // Also fallback to 10s polling for reliability
+      const interval = setInterval(() => {
+        fetchNotifications(true);
+      }, 10000);
+
+      return () => {
+        socket.off("newNotification", handleNewNotification);
+        clearInterval(interval);
+      };
+    } else {
+      // If socket not ready, still poll
+      const interval = setInterval(() => {
+        fetchNotifications(true);
+      }, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [socket, selectedNotif]);
 
   const handleSelectNotif = (notif) => {
     setSelectedNotif(notif);
@@ -74,7 +104,7 @@ export default function NotificationsPage() {
             {notifications.length === 0 ? (
               <div className={styles.empty}>No announcements at this time.</div>
             ) : (
-              [...notifications].reverse().map((notif) => (
+              notifications.map((notif) => (
                 <div 
                   key={notif._id} 
                   className={`${styles.notifItem} ${selectedNotif?._id === notif._id ? styles.active : ""}`}

@@ -1,6 +1,8 @@
 import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
+import NotificationProvider from "./components/NotificationProvider/NotificationProvider";
+import SocketProvider from "./components/SocketProvider/SocketProvider";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const poppins = Poppins({ 
@@ -29,7 +31,11 @@ export default function RootLayout({ children }) {
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
       </head>
       <body>
-        {children}
+        <SocketProvider>
+          <NotificationProvider>
+            {children}
+          </NotificationProvider>
+        </SocketProvider>
         <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
       </body>
     </html>

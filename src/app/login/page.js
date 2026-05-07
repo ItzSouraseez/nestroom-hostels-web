@@ -6,7 +6,7 @@ import styles from "./page.module.css";
 import NavBar from "../components/NavBar/NavBar";
 import Footer from "../components/Footer/Footer";
 import LoginCard from "../components/AuthCard/LoginCard";
-import { secureFetch } from "../utils/auth";
+import { secureFetch, setUser } from "../utils/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,6 +21,7 @@ export default function LoginPage() {
         const data = await res.json();
         
         if (data.success) {
+          setUser(data.data.user);
           if (data.data.user.userType === 'resident') {
             router.push("/student/dashboard");
           } else {

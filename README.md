@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏠 NestRoom — Modern Hostel Management Ecosystem
 
-## Getting Started
+NestRoom is a high-performance, real-time management platform designed to streamline hostel operations and enhance the resident experience. Built with a focus on speed, aesthetics, and reliability, it bridges the gap between administrators and residents through instant communication and automated workflows.
 
-First, run the development server:
+## 🚀 Key Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### 📡 Real-Time Infrastructure
+- **Event-Driven Updates**: Powered by **Socket.io**, the platform provides instant synchronization for attendance checks, complaints, and notifications without manual refreshes.
+- **Push Notifications**: Full integration with the **Web Push API** for native browser alerts, ensuring residents never miss an important announcement or payment deadline.
+- **Smart Fallbacks**: Hybrid architecture that combines WebSocket efficiency with robust 10-second polling fail-safes for critical modules.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 🍱 Resident Experience
+- **Premium Dashboard**: A state-of-the-art overview featuring glassmorphism design, animated status indicators, and live data feeds.
+- **Digital Notice Board**: A scrollable, real-time announcement center with custom sleek scrollbars for a desktop-class experience.
+- **Self-Service Portal**: Automated rent payments via Razorpay, instant leave applications, and a real-time support center for raising grievances.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+### 🛡️ Core Security & Performance
+- **JWT-Based Authentication**: Secure session management with encrypted token storage.
+- **Geofenced Attendance**: High-accuracy location verification for residents during administrative checks.
+- **Optimized Assets**: Dynamic image optimization via Cloudinary and modern typography (Outfit/Inter).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🛠️ Tech Stack
 
-## Learn More
+- **Frontend**: Next.js 14+, Vanilla CSS Modules
+- **Real-time**: Socket.io-client
+- **Notifications**: Web-Push, Service Workers
+- **State Management**: React Context & Hooks
+- **Icons & UI**: Lucide React, CSS Animations
 
-To learn more about Next.js, take a look at the following resources:
+## 🚦 Getting Started
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Prerequisites
+- Node.js 18.x or higher
+- A running instance of the [NestRoom Backend](https://github.com/ItzSouraseez/nestroom-hostels-backend)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Installation
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/ItzSouraseez/nestroom-hostels-web.git
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Configure environment variables in `.env.local`:
+   ```env
+   NEXT_PUBLIC_API_URL=http://localhost:5001
+   NEXT_PUBLIC_VAPID_PUBLIC_KEY=your_vapid_public_key
+   ```
+4. Launch the development server:
+   ```bash
+   npm run dev
+   ```
 
-## Deploy on Vercel
+## 📱 Service Worker & PWA
+The application includes a custom Service Worker (`public/sw.js`) that handles background push notifications and notification click interactions, ensuring engagement even when the tab is closed.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+*Built with ❤️ for better hostel living.*

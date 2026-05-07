@@ -38,7 +38,7 @@ export default function LoginCard() {
       const data = await res.json();
 
       if (data.success) {
-        setTokens(data.data.accessToken, data.data.refreshToken);
+        setTokens(data.data.accessToken, data.data.refreshToken, data.data.user);
         if (loginType === 'resident') {
           router.push('/student/dashboard');
         } else {

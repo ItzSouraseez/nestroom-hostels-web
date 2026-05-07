@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import styles from "./page.module.css";
 import { secureFetch } from "../../utils/auth";
+import { registerPushManager } from "../../../utils/pushManager";
 import Loading from "../../components/Loading/Loading";
 
 export default function StudentOverview() {
@@ -44,6 +45,7 @@ export default function StudentOverview() {
 
   useEffect(() => {
     fetchData();
+    registerPushManager();
   }, []);
 
   const handleMarkAttendance = () => {

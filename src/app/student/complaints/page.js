@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import styles from "./complaints.module.css";
 import { secureFetch } from "../../utils/auth";
+import { useSocket } from "../../components/SocketProvider/SocketProvider";
 import Loading from "../../components/Loading/Loading";
 
 export default function StudentComplaints() {
@@ -22,11 +23,10 @@ export default function StudentComplaints() {
 
   const [attachments, setAttachments] = useState([]);
 
-  useEffect(() => {
-    fetchComplaints();
-  }, []);
+  const { socket } = useSocket();
 
-  const fetchComplaints = async () => {
+  const fetchComplaints = async (isSilent = false) => {
+    if (!isSilent) setLoading(true);
     try {
       const res = await secureFetch("/v1/residents/complaints");
       const data = await res.json();
@@ -39,6 +39,34 @@ export default function StudentComplaints() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchComplaints();
+
+    if (socket) {
+      const handleComplaintUpdate = (data) => {
+        console.log("Real-time complaint update received:", data);
+        fetchComplaints(true); // Silent refresh
+      };
+
+      socket.on("complaintUpdated", handleComplaintUpdate);
+
+      // Fallback 10s polling
+      const interval = setInterval(() => {
+        fetchComplaints(true);
+      }, 10000);
+
+      return () => {
+        socket.off("complaintUpdated", handleComplaintUpdate);
+        clearInterval(interval);
+      };
+    } else {
+      const interval = setInterval(() => {
+        fetchComplaints(true);
+      }, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [socket]);
 
   const handleRaiseSubmit = async (e) => {
     e.preventDefault();
@@ -62,7 +90,11 @@ export default function StudentComplaints() {
         setShowRaiseForm(false);
         fetchComplaints();
       } else {
-        setMessage({ type: 'error', text: data.message || "Failed to raise complaint." });
+        const errorDetails = data.error?.details?.map(d => `${d.field}: ${d.message}`).join(", ");
+        setMessage({ 
+          type: 'error', 
+          text: errorDetails ? `Validation failed: ${errorDetails}` : (data.error?.message || "Failed to raise complaint.") 
+        });
       }
     } catch (e) {
       setMessage({ type: 'error', text: "Error connecting to server." });
@@ -195,7 +227,7 @@ export default function StudentComplaints() {
           </div>
         ) : (
           <div className={styles.listGrid}>
-            {[...complaints].reverse().map(complaint => (
+            {complaints.map(complaint => (
               <div key={complaint._id} className={styles.complaintCard}>
                 <div className={styles.cardHeader}>
                   <span className={`${styles.statusLabel} ${styles[complaint.status.toLowerCase().replace(' ', '-')]}`}>

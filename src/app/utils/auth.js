@@ -12,11 +12,26 @@ export const getRefreshToken = () => {
     return null;
 };
 
-export const setTokens = (accessToken, refreshToken) => {
+export const setTokens = (accessToken, refreshToken, user) => {
     if (typeof window !== 'undefined') {
         localStorage.setItem('accessToken', accessToken);
         localStorage.setItem('refreshToken', refreshToken);
+        if (user) localStorage.setItem('user', JSON.stringify(user));
     }
+};
+
+export const setUser = (user) => {
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('user', JSON.stringify(user));
+    }
+};
+
+export const getUser = () => {
+    if (typeof window !== 'undefined') {
+        const user = localStorage.getItem('user');
+        return user ? JSON.parse(user) : null;
+    }
+    return null;
 };
 
 export const clearTokens = () => {
@@ -31,7 +46,7 @@ export const isAuthenticated = () => {
     return typeof window !== 'undefined' && !!localStorage.getItem('accessToken');
 };
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
 export const secureFetch = async (url, options = {}) => {
     // Substitute hardcoded localhost with env variable if present, 
